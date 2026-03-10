@@ -29,5 +29,4 @@ def load_test_files(folder_path):
 
 if __name__ == "__main__":
     load_test_files("sample_tests")
-```
 
