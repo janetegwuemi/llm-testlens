@@ -1,42 +1,49 @@
 # llm-testlens
-
-A Python tool that uses LLMs to predict test outcomes and detect test smells — without executing the tests.
+A Python tool that uses LLMs to predict test outcomes and detect test smells in real Python test suites.
 
 ## What it does
-
 `llm-testlens` loads Python test files, sends them to the Claude API, and asks the model to:
 - Predict whether each test will **pass or fail**
 - Identify **test smells** present in the test code
 
-It then runs the tests using `pytest` and compares the LLM's predictions against the actual results.
+It then runs the tests using `pytest`, compares the LLM's predictions against the actual results, and logs per-file accuracy and smell detection rates to CSV.
+
+## Pilot Results
+Evaluated on 3 real open-source Python repositories:
+- **337 tests** analysed across 3 projects
+- **66.67% prediction accuracy** (LLM vs actual pytest results)
+- **7 test smells** detected
 
 ## Motivation
-
 Inspired by empirical research on LLM-based test analysis (Hora et al., FSE 2024; Gheyi et al., SBES 2024), this tool explores two questions:
-
 - How accurately can an LLM predict test outcomes on real Python test suites?
 - Can LLMs reliably detect test smells without executing the code?
 
-## Project Structure
+A tool paper documenting the findings is in preparation, targeting JSERD.
 
+## Project Structure
 ```
 llm-testlens/
+├── main.py            # Entry point — runs the full pipeline
 ├── loader.py          # Stage 1 — loads and parses test files
 ├── claude_client.py   # Stage 2 — sends test code to Claude API, returns predictions + smells
-└── pytest_runner.py   # Stage 3 — runs tests with pytest, captures real pass/fail results
+├── pytest_runner.py   # Stage 3 — runs tests with pytest, captures real pass/fail results
+├── comparator.py      # Stage 4a — compares LLM predictions vs actual results
+├── logger.py          # Stage 4b — logs results to CSV
+└── real_tests/        # Sample test files used in pilot evaluation
 ```
 
 ## Stages
-
 | Stage | Module | Description | Status |
 |-------|--------|-------------|--------|
 | 1 | `loader.py` | Discovers and loads Python test files from a target directory | ✅ Done |
 | 2 | `claude_client.py` | Sends test code to Claude API, parses LLM predictions and detected smells | ✅ Done |
 | 3 | `pytest_runner.py` | Runs tests using pytest subprocess, captures actual pass/fail per test | ✅ Done |
-| 4 | `comparator.py` + `logger.py` | Compares LLM predictions vs actual results, logs to CSV | 🔄 In Progress |
+| 4a | `comparator.py` | Compares LLM predictions vs actual results, computes accuracy | ✅ Done |
+| 4b | `logger.py` | Logs per-file results and smell counts to CSV | ✅ Done |
+| 4c | `main.py` | Full pipeline entry point — runs all stages end to end | ✅ Done |
 
 ## Requirements
-
 ```
 python >= 3.10
 anthropic
@@ -44,58 +51,52 @@ pytest
 ```
 
 Install dependencies:
-
 ```bash
 pip install anthropic pytest
 ```
 
 ## Setup
-
 1. Clone the repo:
-
 ```bash
 git clone https://github.com/janetegwuemi/llm-testlens.git
 cd llm-testlens
 ```
 
 2. Set your Anthropic API key:
-
 ```bash
 export ANTHROPIC_API_KEY=your_key_here
 ```
 
 ## Usage
+### Run the full pipeline
+```bash
+python main.py --target path/to/test_directory
+```
 
-### Stage 1 — Load test files
+This will:
+1. Load all test files from the target directory
+2. Send each file to Claude for smell detection and PASS/FAIL prediction
+3. Run the tests with pytest
+4. Compare predictions against actual results
+5. Log per-file accuracy and smell counts to CSV
 
+### Run individual stages
 ```python
 from loader import load_tests
+from claude_client import analyse_tests
+from pytest_runner import run_tests
+from comparator import compare_results
+from logger import log_results
 
 tests = load_tests("path/to/test_directory")
-```
-
-### Stage 2 — Get LLM predictions
-
-```python
-from claude_client import analyse_tests
-
-results = analyse_tests(tests)
-# returns: predicted pass/fail + detected test smells per test
-```
-
-### Stage 3 — Run actual tests
-
-```python
-from pytest_runner import run_tests
-
+predictions = analyse_tests(tests)
 actual = run_tests("path/to/test_directory")
-# returns: actual pass/fail results from pytest
+comparison = compare_results(predictions, actual)
+log_results(comparison)
 ```
 
 ## Test Smells Detected
-
 The tool currently targets the following test smell categories:
-
 - **Assertion Roulette** — multiple assertions with no explanation
 - **Eager Test** — test that calls too many methods under test
 - **Mystery Guest** — test that depends on external resources
@@ -104,17 +105,16 @@ The tool currently targets the following test smell categories:
 - **Lazy Test** — multiple tests verifying the same method
 
 ## Related Work
-
 - Hora, A. et al. *Predicting Test Results without Execution*. FSE 2024
 - Gheyi, R. et al. *Evaluating Large Language Models in Detecting Test Smells*. SBES 2024
 - Bezerra, C. et al. *Detecting Test Smells in Python Test Code Generated by LLM*. SBES 2024
+- Ribeiro, M. et al. *Evaluating LLMs for Test Smell Detection*. SBES 2024
 
 ## Author
-
 **Janet Egwuemi**
 Software Engineer | Research Assistant
 GitHub: [@janetegwuemi](https://github.com/janetegwuemi)
+Lattes: [lattes.cnpq.br/4074231145602580](https://lattes.cnpq.br/4074231145602580)
 
 ## License
-
 MIT
