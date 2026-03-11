@@ -6,7 +6,7 @@ A Python tool that uses LLMs to predict test outcomes and detect test smells in 
 - Predict whether each test will **pass or fail**
 - Identify **test smells** present in the test code
 
-It then runs the tests using `pytest`, compares the LLM's predictions against the actual results, and logs per-file accuracy and smell detection rates to CSV.
+It then runs the tests using `pytest`, compares the LLM's predictions against the actual results, and logs per-file accuracy and smell detection rates to JSON and TXT.
 
 ## Pilot Results
 Evaluated on 3 real open-source Python repositories:
@@ -29,7 +29,7 @@ llm-testlens/
 ├── claude_client.py   # Stage 2 — sends test code to Claude API, returns predictions + smells
 ├── pytest_runner.py   # Stage 3 — runs tests with pytest, captures real pass/fail results
 ├── comparator.py      # Stage 4a — compares LLM predictions vs actual results
-├── logger.py          # Stage 4b — logs results to CSV
+├── logger.py          # Stage 4b — logs results to JSON + TXT
 └── real_tests/        # Sample test files used in pilot evaluation
 ```
 
@@ -40,7 +40,7 @@ llm-testlens/
 | 2 | `claude_client.py` | Sends test code to Claude API, parses LLM predictions and detected smells | ✅ Done |
 | 3 | `pytest_runner.py` | Runs tests using pytest subprocess, captures actual pass/fail per test | ✅ Done |
 | 4a | `comparator.py` | Compares LLM predictions vs actual results, computes accuracy | ✅ Done |
-| 4b | `logger.py` | Logs per-file results and smell counts to CSV | ✅ Done |
+| 4b | `logger.py` | Logs per-file results and smell counts to JSON + TXT | ✅ Done |
 | 4c | `main.py` | Full pipeline entry point — runs all stages end to end | ✅ Done |
 
 ## Requirements
@@ -70,29 +70,26 @@ export ANTHROPIC_API_KEY=your_key_here
 ## Usage
 ### Run the full pipeline
 ```bash
-python main.py --target path/to/test_directory
+python main.py                               # runs on default sample_tests/ folder
+python main.py --folder my_tests/            # runs on a custom folder
+python main.py --folder my_tests/ --output my_results/
 ```
-
-This will:
-1. Load all test files from the target directory
-2. Send each file to Claude for smell detection and PASS/FAIL prediction
-3. Run the tests with pytest
-4. Compare predictions against actual results
-5. Log per-file accuracy and smell counts to CSV
 
 ### Run individual stages
 ```python
-from loader import load_tests
-from claude_client import analyse_tests
-from pytest_runner import run_tests
-from comparator import compare_results
-from logger import log_results
+from loader import load_test_files
+from claude_client import analyze_test
+from pytest_runner import run_pytest
+from comparator import compare, summarise, print_report
+from logger import Logger
 
-tests = load_tests("path/to/test_directory")
-predictions = analyse_tests(tests)
-actual = run_tests("path/to/test_directory")
-comparison = compare_results(predictions, actual)
-log_results(comparison)
+test_files = load_test_files("path/to/test_directory")
+llm_results = [analyze_test(f["filename"], f["content"]) for f in test_files]
+pytest_results = [run_pytest(f["filename"]) for f in test_files]
+comparisons = compare(llm_results, pytest_results)
+summary = summarise(comparisons)
+print_report(comparisons)
+Logger(output_dir="results").log_run(llm_results, comparisons, summary)
 ```
 
 ## Test Smells Detected
@@ -114,7 +111,7 @@ The tool currently targets the following test smell categories:
 **Janet Egwuemi**
 Software Engineer | Research Assistant
 GitHub: [@janetegwuemi](https://github.com/janetegwuemi)
-Lattes: [lattes.cnpq.br/4074231145602580](https://lattes.cnpq.br/4074231145602580)
+
 
 ## License
 MIT
